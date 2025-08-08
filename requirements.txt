@@ -1,34 +1,6 @@
-# Core dependencies
-requests==2.31.0
-beautifulsoup4==4.12.2
-feedparser==6.0.10
-
-# Database
-sqlalchemy==2.0.23
-
-# Scheduling
-apscheduler==3.10.4
-
-# NLP & Classification
-spacy==3.7.2
-textblob==0.17.1
-
-# API clients
-praw==7.7.1  # Reddit API
-PyGithub==1.59.1  # GitHub API
-
-# Web framework
-streamlit==1.28.1
-fastapi==0.104.1
-uvicorn==0.24.0
-
-# Utilities
-python-dotenv==1.0.0
-pandas==2.1.3
-python-dateutil==2.8.2
-pytz==2023.3
-
-# Development
-pytest==7.4.3
-black==23.11.0
-flake8==6.1.0
+# Minimal requirements for deployment
+streamlit>=1.28.0
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+feedparser>=6.0.0
+python-dateutil>=2.8.0
