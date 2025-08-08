@@ -149,12 +149,17 @@ class GitHubScraper(BaseScraper):
                 'q': query,
                 'sort': 'updated',  # Sort by recent activity
                 'order': 'desc',
-                'per_page': 50  # Max per page
+                'per_page': 30  # Reduced from 50
             }
             
             logger.info("Searching GitHub repositories...")
-            response = self._make_request(search_url, params=params)
+            response = self._make_request(search_url, params=params, timeout=20)
             data = response.json()
+            
+            # Check for API rate limit
+            if 'message' in data and 'rate limit' in data.get('message', '').lower():
+                logger.warning("GitHub API rate limit exceeded")
+                return []
             
             total_count = data.get('total_count', 0)
             repositories = data.get('items', [])
@@ -178,7 +183,8 @@ class GitHubScraper(BaseScraper):
             
         except Exception as e:
             logger.error(f"Error scraping GitHub: {e}")
-            raise
+            # Don't raise, just return empty list
+            logger.warning("Returning empty results due to GitHub API error")
         
         return items
     

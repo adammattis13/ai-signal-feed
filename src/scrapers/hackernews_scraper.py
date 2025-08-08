@@ -28,8 +28,14 @@ class HackerNewsScraper(BaseScraper):
         """
         try:
             story_url = f"{self.base_url}/item/{story_id}.json"
-            response = self._make_request(story_url)
-            return response.json()
+            response = self._make_request(story_url, timeout=10)  # 10 second timeout
+            data = response.json()
+            
+            # Skip deleted/dead stories
+            if not data or data.get('deleted') or data.get('dead'):
+                return None
+                
+            return data
             
         except Exception as e:
             logger.debug(f"Error fetching HN story {story_id}: {e}")
@@ -175,28 +181,46 @@ class HackerNewsScraper(BaseScraper):
         try:
             # Get top stories first, then new stories
             endpoints = [
-                ('topstories', 50),
-                ('newstories', 30)
+                ('topstories', 30),  # Reduced from 50
+                ('newstories', 20)   # Reduced from 30
             ]
             
             processed_ids = set()
+            max_items = 15  # Limit total items to prevent hanging
             
             for endpoint, limit in endpoints:
+                if len(items) >= max_items:
+                    break
+                    
                 logger.info(f"Fetching {endpoint} from Hacker News...")
                 story_ids = self._get_story_list(endpoint, limit)
                 
                 ai_stories_found = 0
+                processed_count = 0
                 
                 for story_id in story_ids:
+                    if len(items) >= max_items:
+                        break
+                        
                     # Skip if already processed (story might appear in both top and new)
                     if story_id in processed_ids:
                         continue
                     
                     processed_ids.add(story_id)
+                    processed_count += 1
                     
-                    # Get story details
-                    story_data = self._get_story_details(story_id)
-                    if not story_data:
+                    # Timeout protection - don't process too many
+                    if processed_count > limit:
+                        logger.warning(f"Reached processing limit for {endpoint}")
+                        break
+                    
+                    # Get story details with timeout
+                    try:
+                        story_data = self._get_story_details(story_id)
+                        if not story_data:
+                            continue
+                    except Exception as e:
+                        logger.warning(f"Skipping story {story_id} due to timeout: {e}")
                         continue
                     
                     # Check if story meets criteria
@@ -236,7 +260,8 @@ class HackerNewsScraper(BaseScraper):
             
         except Exception as e:
             logger.error(f"Error scraping Hacker News: {e}")
-            raise
+            # Don't re-raise, just return what we have
+            logger.warning("Returning partial results due to error")
         
         return items
     

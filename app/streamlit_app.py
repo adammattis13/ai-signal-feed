@@ -119,6 +119,25 @@ def run_manual_scrape():
     progress_bar = st.progress(0)
     status_text = st.empty()
     
+    # Create a log container
+    log_container = st.expander("📝 Detailed Logs", expanded=True)
+    log_text = log_container.empty()
+    
+    # Capture logs in a list
+    import io
+    import logging
+    
+    log_capture = io.StringIO()
+    handler = logging.StreamHandler(log_capture)
+    handler.setLevel(logging.INFO)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    handler.setFormatter(formatter)
+    
+    # Add handler to scrapers
+    scrapers_logger = logging.getLogger('src.scrapers')
+    scrapers_logger.addHandler(handler)
+    scrapers_logger.setLevel(logging.INFO)
+    
     try:
         classifier = SignalClassifier()
         db_manager = init_database()
@@ -138,9 +157,20 @@ def run_manual_scrape():
             status_text.text(f"🔍 Scraping {name}...")
             progress_bar.progress((i) / total_scrapers)
             
+            # Update log display
+            current_logs = log_capture.getvalue()
+            if current_logs:
+                log_text.text_area("Logs:", current_logs, height=200)
+            
             try:
                 # Scrape items
+                st.write(f"🔍 **Starting {name} scraper...**")
                 items = scraper.scrape()
+                
+                # Update logs after each scraper
+                current_logs = log_capture.getvalue()
+                if current_logs:
+                    log_text.text_area("Logs:", current_logs, height=200)
                 
                 if items:
                     st.success(f"✅ {name}: Found {len(items)} items")
@@ -150,6 +180,10 @@ def run_manual_scrape():
                     
             except Exception as e:
                 st.error(f"❌ {name}: {str(e)}")
+                # Still show logs even if error
+                current_logs = log_capture.getvalue()
+                if current_logs:
+                    log_text.text_area("Logs:", current_logs, height=200)
                 continue
         
         # Classification and saving
@@ -157,6 +191,7 @@ def run_manual_scrape():
         progress_bar.progress(0.8)
         
         if all_items:
+            st.write("🧠 **Classifying items...**")
             saved_count = 0
             for item in all_items:
                 # Classify
@@ -187,6 +222,11 @@ def run_manual_scrape():
             with col4:
                 st.metric("Hacker News", source_counts.get('hackernews', 0))
             
+            # Final log update
+            final_logs = log_capture.getvalue()
+            if final_logs:
+                log_text.text_area("Final Logs:", final_logs, height=300)
+            
             # Clear cache to show new data
             st.cache_data.clear()
             time.sleep(2)  # Brief pause before rerun
@@ -198,6 +238,10 @@ def run_manual_scrape():
         st.error(f"❌ Scraping failed: {str(e)}")
         progress_bar.progress(0)
         status_text.text("❌ Scraping failed")
+    
+    finally:
+        # Clean up logging handler
+        scrapers_logger.removeHandler(handler)
 
 def main():
     """Main Streamlit app"""

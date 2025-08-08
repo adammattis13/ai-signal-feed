@@ -55,12 +55,12 @@ class BaseScraper(ABC):
             
         self.last_request_time = time.time()
     
-    def _make_request(self, url: str, **kwargs) -> requests.Response:
+    def _make_request(self, url: str, timeout: int = 15, **kwargs) -> requests.Response:
         """Make HTTP request with rate limiting and error handling"""
         self._rate_limit_wait()
         
         try:
-            response = self.session.get(url, **kwargs)
+            response = self.session.get(url, timeout=timeout, **kwargs)
             response.raise_for_status()
             return response
         except requests.exceptions.RequestException as e:
